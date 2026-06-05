@@ -1,0 +1,39 @@
+provider:
+  name: openfaas
+  gateway: http://127.0.0.1:8080
+
+functions:
+  fn-generate-password:
+    lang: python3-http
+    handler: ./functions/fn-generate-password
+    image: samfoul/fn-generate-password:latest
+    environment:
+      DB_HOST: "postgres-service.openfaas-fn.svc.cluster.local"
+      DB_PORT: "5432"
+      DB_NAME: "cofrap_db"
+      DB_USER: "postgres_user"
+      DB_PASSWORD: "postgres_password"
+
+  fn-generate-mfa:
+    lang: python3-http
+    handler: ./functions/fn-generate-mfa
+    image: samfoul/fn-generate-mfa:latest
+    environment:
+      DB_HOST: "postgres-service.openfaas-fn.svc.cluster.local"
+      DB_PORT: "5432"
+      DB_NAME: "cofrap_db"
+      DB_USER: "postgres_user"
+      DB_PASSWORD: "postgres_password"
+      ENCRYPTION_KEY: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="
+
+  fn-authenticate:
+    lang: python3-http
+    handler: ./functions/fn-authenticate
+    image: samfoul/fn-authenticate:latest
+    environment:
+      DB_HOST: "postgres-service.openfaas-fn.svc.cluster.local"
+      DB_PORT: "5432"
+      DB_NAME: "cofrap_db"
+      DB_USER: "postgres_user"
+      DB_PASSWORD: "postgres_password"
+      ENCRYPTION_KEY: "MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTI="

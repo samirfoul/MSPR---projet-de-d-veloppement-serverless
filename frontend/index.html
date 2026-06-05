@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>COFRAP - Gestionnaire de Comptes Serverless</title>
+    <meta name="description" content="PoC d'authentification Serverless sécurisée avec double authentification obligatoire et rotation semestrielle pour la COFRAP.">
+    <!-- Police Premium Outfit de Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --card-bg: rgba(17, 24, 39, 0.7);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-primary: #f3f4f6;
+            --text-secondary: #9ca3af;
+            --primary-gradient: linear-gradient(135deg, #6366f1, #8b5cf6);
+            --secondary-gradient: linear-gradient(135deg, #3b82f6, #06b6d4);
+            --danger-gradient: linear-gradient(135deg, #f43f5e, #e11d48);
+            --success-gradient: linear-gradient(135deg, #10b981, #059669);
+            --warning-gradient: linear-gradient(135deg, #f59e0b, #d97706);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.3);
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(139, 92, 246, 0.15) 0px, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            z-index: 10;
+        }
+
+        /* En-tête de la page */
+        header {
+            text-align: center;
+            margin-bottom: 2.5rem;
+            animation: fadeInDown 0.6s ease;
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.05em;
+            background: linear-gradient(to right, #a5b4fc, #c084fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+            font-weight: 400;
+        }
+
+        /* Glassmorphism Card Principal */
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid var(--border-color);
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+            overflow: hidden;
+            animation: scaleIn 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+
+        /* Système d'onglets (Tabs) */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1.25rem;
+            font-family: inherit;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            position: relative;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .tab-btn.active {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active::after {
+            content: '';
+            position: absolute;
+            bottom: -1px;
+            left: 0;
+            width: 100%;
+            height: 3px;
+            background: var(--primary-gradient);
+            border-radius: 3px 3px 0 0;
+            box-shadow: 0 0 12px var(--accent-glow);
+        }
+
+        /* Contenu des formulaires */
+        .tab-content {
+            padding: 2.5rem;
+        }
+
+        .form-section {
+            display: none;
+        }
+
+        .form-section.active {
+            display: block;
+            animation: fadeIn 0.4s ease;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        /* Champs de saisie stylisés */
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .form-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.9rem 1rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            transition: var(--transition);
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 4px var(--accent-glow);
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        .form-input::placeholder {
+            color: rgba(255, 255, 255, 0.25);
+        }
+
+        /* Boutons d'actions */
+        .btn {
+            width: 100%;
+            background: var(--primary-gradient);
+            border: none;
+            border-radius: 12px;
+            padding: 1rem;
+            color: white;
+            font-family: inherit;
+            font-size: 1.05rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+            box-shadow: 0 4px 15px rgba(139, 92, 246, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(139, 92, 246, 0.4);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn:disabled {
+            background: #4b5563;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* Système de Feedback & Notifications */
+        .alert {
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1.5rem;
+            font-weight: 500;
+            font-size: 0.95rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            animation: shake 0.5s ease;
+        }
+
+        .alert-error {
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            color: #f43f5e;
+        }
+
+        .alert-success {
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid rgba(16, 185, 129, 0.2);
+            color: #34d399;
+        }
+
+        .alert-warning {
+            background: rgba(245, 158, 11, 0.1);
+            border: 1px solid rgba(245, 158, 11, 0.2);
+            color: #fbbf24;
+            flex-direction: column;
+        }
+
+        .alert-warning button {
+            background: var(--warning-gradient);
+            border: none;
+            color: white;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .alert-warning button:hover {
+            opacity: 0.9;
+        }
+
+        /* Loader Animation */
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2.5px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 0.8s linear infinite;
+        }
+
+        /* Zone de Rendu des QR Codes */
+        .results-card {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 1.5rem;
+            margin-top: 1.5rem;
+            animation: scaleIn 0.4s ease;
+        }
+
+        .results-title {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            background: var(--primary-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .password-display {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px dashed rgba(255, 255, 255, 0.15);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 1.1rem;
+            letter-spacing: 0.05em;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            color: #c084fc;
+        }
+
+        .copy-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            color: var(--text-primary);
+            padding: 0.4rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .copy-btn:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .qr-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 480px) {
+            .qr-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .qr-box {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.02);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1rem;
+        }
+
+        .qr-box img {
+            width: 100%;
+            max-width: 160px;
+            height: auto;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border: 4px solid white;
+        }
+
+        .qr-box span {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* Tableau de bord après Connexion Réussie */
+        .dashboard {
+            text-align: center;
+            padding: 3rem 2rem;
+            animation: fadeIn 0.6s ease;
+        }
+
+        .dashboard-icon {
+            font-size: 4rem;
+            margin-bottom: 1.5rem;
+            background: var(--success-gradient);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: inline-block;
+            animation: bounce 1.5s infinite;
+        }
+
+        .dashboard h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .dashboard p {
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+        }
+
+        .logout-btn {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 0.8rem 1.5rem;
+            color: var(--text-primary);
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .logout-btn:hover {
+            background: rgba(244, 63, 94, 0.1);
+            border-color: rgba(244, 63, 94, 0.2);
+            color: #f43f5e;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes scaleIn {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Logo / En-tête -->
+        <header>
+            <h1>COFRAP</h1>
+            <p>Système d'Accès Serverless & 2FA Obligatoire</p>
+        </header>
+
+        <!-- Container principal d'authentification -->
+        <div class="card" id="auth-card">
+            <!-- Onglets (Uniquement visibles si non connecté) -->
+            <div class="tabs" id="auth-tabs">
+                <button class="tab-btn active" onclick="switchTab('register')" id="tab-register-btn">Inscription / Rotation</button>
+                <button class="tab-btn" onclick="switchTab('login')" id="tab-login-btn">Connexion</button>
+            </div>
+
+            <!-- Contenus des onglets -->
+            <div class="tab-content">
+                
+                <!-- Zone d'affichage des erreurs/success globaux -->
+                <div id="global-alert"></div>
+
+                <!-- FORMULAIRE : INSCRIPTION / ROTATION -->
+                <div class="form-section active" id="register-section">
+                    <form id="register-form" onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label for="reg-username">Identifiant Utilisateur</label>
+                            <div class="input-wrapper">
+                                <input type="text" id="reg-username" class="form-input" placeholder="ex: michel.ranu" required>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn" id="register-btn">
+                            <span id="register-btn-text">Générer mon compte</span>
+                            <div class="spinner" id="register-spinner" style="display: none;"></div>
+                        </button>
+                    </form>
+
+                    <!-- Affichage du résultat de la création de compte -->
+                    <div id="registration-results" class="results-card" style="display: none;">
+                        <h3 class="results-title">Identifiants et Double Authentification Générés</h3>
+                        <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 0.75rem;">
+                            ⚠️ Copiez votre mot de passe ci-dessous. Scannez impérativement la clé 2FA avant votre première tentative de connexion.
+                        </p>
+                        
+                        <div class="password-display">
+                            <span id="generated-password">********</span>
+                            <button type="button" class="copy-btn" onclick="copyPassword()">Copier</button>
+                        </div>
+
+                        <div class="qr-container">
+                            <div class="qr-box">
+                                <img id="qr-password" src="" alt="QR Code Mot de Passe">
+                                <span>1. Scan Mot de passe</span>
+                            </div>
+                            <div class="qr-box">
+                                <img id="qr-mfa" src="" alt="QR Code Secret TOTP">
+                                <span>2. Scan Secret 2FA</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- FORMULAIRE : CONNEXION -->
+                <div class="form-section" id="login-section">
+                    <form id="login-form" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label for="login-username">Identifiant</label>
+                            <input type="text" id="login-username" class="form-input" placeholder="ex: michel.ranu" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="login-password">Mot de passe</label>
+                            <input type="password" id="login-password" class="form-input" placeholder="Saisir votre mot de passe de 24 caractères" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="login-2fa">Code Authenticateur (2FA)</label>
+                            <input type="text" id="login-2fa" class="form-input" placeholder="ex: 123456" maxlength="6" pattern="[0-9]{6}" required autocomplete="off">
+                        </div>
+
+                        <button type="submit" class="btn" id="login-btn">
+                            <span id="login-btn-text">Se connecter</span>
+                            <div class="spinner" id="login-spinner" style="display: none;"></div>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- TABLEAU DE BORD (DASHBOARD) LORSQUE L'UTILISATEUR EST CONNECTÉ -->
+                <div id="dashboard-section" style="display: none;" class="dashboard">
+                    <div class="dashboard-icon">🛡️</div>
+                    <h2 id="dashboard-title">Connexion Réussie !</h2>
+                    <p>Bienvenue sur votre portail cloud COFRAP sécurisé.</p>
+                    <button class="logout-btn" onclick="handleLogout()">Se déconnecter</button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+    <!-- Script JavaScript pour le pilotage du Front-End -->
+    <script>
+        // Configuration de la Gateway OpenFaaS
+        const GATEWAY_URL = "http://127.0.0.1:8080";
+        
+        const API_PATHS = {
+            generatePassword: `${GATEWAY_URL}/function/fn-generate-password`,
+            generateMFA: `${GATEWAY_URL}/function/fn-generate-mfa`,
+            authenticate: `${GATEWAY_URL}/function/fn-authenticate`
+        };
+
+        // Fonction pour changer d'onglet (Tabs)
+        function switchTab(tab) {
+            // Cacher toutes les sections
+            document.getElementById('register-section').classList.remove('active');
+            document.getElementById('login-section').classList.remove('active');
+            document.getElementById('tab-register-btn').classList.remove('active');
+            document.getElementById('tab-login-btn').classList.remove('active');
+
+            // Cacher les alertes existantes lors du changement
+            clearAlert();
+
+            if (tab === 'register') {
+                document.getElementById('register-section').classList.add('active');
+                document.getElementById('tab-register-btn').classList.add('active');
+            } else {
+                document.getElementById('login-section').classList.add('active');
+                document.getElementById('tab-login-btn').classList.add('active');
+            }
+        }
+
+        // Fonctions d'affichage d'alertes customisées
+        function displayAlert(type, message, isExpired = false, username = "") {
+            const container = document.getElementById('global-alert');
+            container.innerHTML = ''; // Clear
+
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            
+            if (isExpired) {
+                alertDiv.innerHTML = `
+                    <div>
+                        <strong>⚠️ Rotation Obligatoire :</strong> ${message}
+                    </div>
+                    <button onclick="goToRenewal('${username}')">Renouveler mes accès maintenant</button>
+                `;
+            } else {
+                alertDiv.innerText = message;
+            }
+
+            container.appendChild(alertDiv);
+            alertDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+
+        function clearAlert() {
+            document.getElementById('global-alert').innerHTML = '';
+        }
+
+        // Redirection vers le renouvellement (en cas de mot de passe expiré)
+        function goToRenewal(username) {
+            switchTab('register');
+            document.getElementById('reg-username').value = username;
+            displayAlert('success', `Vous pouvez régénérer les identifiants pour '${username}'. Remplissez le formulaire ci-dessous.`);
+        }
+
+        // Action de Copie du mot de passe
+        function copyPassword() {
+            const pwdText = document.getElementById('generated-password').innerText;
+            navigator.clipboard.writeText(pwdText).then(() => {
+                const copyBtn = document.querySelector('.copy-btn');
+                copyBtn.innerText = "Copié !";
+                setTimeout(() => {
+                    copyBtn.innerText = "Copier";
+                }, 2000);
+            });
+        }
+
+        // ÉTAPE 1 & 2 : INSCRIPTION & GÉNÉRATION DE LA MFA
+        async function handleRegister(event) {
+            event.preventDefault();
+            clearAlert();
+            
+            const username = document.getElementById('reg-username').value.trim();
+            const btn = document.getElementById('register-btn');
+            const btnText = document.getElementById('register-btn-text');
+            const spinner = document.getElementById('register-spinner');
+            const resultsCard = document.getElementById('registration-results');
+
+            // Désactiver le bouton et afficher le spinner
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+            resultsCard.style.display = 'none';
+
+            try {
+                // 1. Appeler la fonction 1 (Génération de mot de passe complexe)
+                const resPwd = await fetch(API_PATHS.generatePassword, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+
+                if (!resPwd.ok) {
+                    const errorData = await resPwd.json();
+                    throw new Error(errorData.error || "Échec de la génération du mot de passe.");
+                }
+
+                const dataPwd = await resPwd.json();
+
+                // 2. Appeler la fonction 2 (Génération de la configuration MFA/2FA)
+                const resMFA = await fetch(API_PATHS.generateMFA, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: username })
+                });
+
+                if (!resMFA.ok) {
+                    const errorData = await resMFA.json();
+                    throw new Error(errorData.error || "Échec de la génération de la double authentification.");
+                }
+
+                const dataMFA = await resMFA.json();
+
+                // 3. Afficher les données générées
+                document.getElementById('generated-password').innerText = dataPwd.raw_password;
+                document.getElementById('qr-password').src = dataPwd.qr_code;
+                document.getElementById('qr-mfa').src = dataMFA.qr_code;
+                
+                resultsCard.style.display = 'block';
+                displayAlert('success', `Compte créé avec succès pour '${username}' !`);
+
+            } catch (err) {
+                displayAlert('error', `Erreur lors de la création du compte : ${err.message}`);
+            } finally {
+                // Rétablir le bouton
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                spinner.style.display = 'none';
+            }
+        }
+
+        // ÉTAPE 3 : CONNEXION & AUTHENTIFICATION 2FA
+        async function handleLogin(event) {
+            event.preventDefault();
+            clearAlert();
+
+            const username = document.getElementById('login-username').value.trim();
+            const password = document.getElementById('login-password').value.trim();
+            const code = document.getElementById('login-2fa').value.trim();
+            
+            const btn = document.getElementById('login-btn');
+            const btnText = document.getElementById('login-btn-text');
+            const spinner = document.getElementById('login-spinner');
+
+            // Désactiver le bouton et afficher le spinner
+            btn.disabled = true;
+            btnText.style.display = 'none';
+            spinner.style.display = 'block';
+
+            try {
+                // Appeler la fonction 3 (Authentification)
+                const response = await fetch(API_PATHS.authenticate, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        password: password,
+                        code: code
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.status === 403 && data.status === 'expired') {
+                    // Cas spécifique : Identifiants expirés (+ de 6 mois)
+                    displayAlert('warning', data.message, true, username);
+                    return;
+                }
+
+                if (!response.ok) {
+                    throw new Error(data.message || "Erreur de connexion. Vérifiez vos identifiants ou votre code 2FA.");
+                }
+
+                // Authentification validée !
+                showDashboard(username);
+
+            } catch (err) {
+                displayAlert('error', err.message);
+            } finally {
+                // Rétablir le bouton
+                btn.disabled = false;
+                btnText.style.display = 'inline';
+                spinner.style.display = 'none';
+            }
+        }
+
+        // Afficher l'état connecté
+        function showDashboard(username) {
+            document.getElementById('auth-tabs').style.display = 'none';
+            document.getElementById('register-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'none';
+            
+            document.getElementById('dashboard-title').innerText = `Bienvenue, ${username} !`;
+            document.getElementById('dashboard-section').style.display = 'block';
+        }
+
+        // Se déconnecter (Revenir à la page de connexion)
+        function handleLogout() {
+            document.getElementById('auth-tabs').style.display = 'flex';
+            document.getElementById('dashboard-section').style.display = 'none';
+            
+            // Réinitialiser les formulaires
+            document.getElementById('login-form').reset();
+            document.getElementById('register-form').reset();
+            document.getElementById('registration-results').style.display = 'none';
+            
+            switchTab('login');
+        }
+    </script>
+</body>
+</html>
