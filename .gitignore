@@ -24,3 +24,4 @@ __pycache__/
 
 # Données locales de test
 local_test/postgres-data/
+fix-year.sh
